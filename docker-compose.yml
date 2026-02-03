@@ -41,13 +41,13 @@ services:
       retries: 30
       start_period: 10s
 
-  # Elasticsearch
+  # --- СТЕК ЛОГИРОВАНИЯ (ELK) ---
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
+    image: elasticsearch:8.13.0
     environment:
       - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
       - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
       - "9200:9200"
     volumes:
@@ -60,27 +60,8 @@ services:
       timeout: 10s
       retries: 15
 
-  # Logstash (для централизованных логов)
-  logstash:
-    image: docker.elastic.co/logstash/logstash:7.17.0
-    volumes:
-      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    ports:
-      - "5000:5000"
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    networks:
-      - microservices-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9600/"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  # Kibana (для просмотра логов)
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.17.0
+    image: kibana:8.13.0
     ports:
       - "5601:5601"
     environment:
@@ -96,39 +77,92 @@ services:
       timeout: 10s
       retries: 15
 
-  # User Service
+  # Filebeat (заменяет Logstash для сбора логов)
+  filebeat:
+    image: elastic/filebeat:8.13.0
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - filebeat-data:/usr/share/filebeat/data
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # --- СТЕК МОНИТОРИНГА (PROMETHEUS + GRAFANA) ---
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=200h'
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # --- ВАШИ ПРИЛОЖЕНИЯ ---
   user-service:
     build: ./user-service
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://admin:admin123@postgres-user:5432/userdb
-      # Убрали KAFKA_BROKERS
     depends_on:
       postgres-user:
         condition: service_healthy
-      # Убрали зависимость от kafka
     networks:
       - microservices-network
     restart: unless-stopped
 
-  # Order Service
   order-service:
     build: ./order-service
     ports:
       - "8001:8001"
     environment:
       DATABASE_URL: postgresql://admin:admin123@postgres-order:5432/orderdb
-      # Убрали KAFKA_BROKERS
     depends_on:
       postgres-order:
         condition: service_healthy
-      # Убрали зависимость от kafka
     networks:
       - microservices-network
     restart: unless-stopped
 
-  # Frontend
   frontend:
     build: ./frontend
     ports:
@@ -144,6 +178,9 @@ volumes:
   postgres-user-data:
   postgres-order-data:
   elasticsearch-data:
+  filebeat-data:
+  prometheus-data:
+  grafana-data:
 
 networks:
   microservices-network:
