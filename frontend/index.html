@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microservices Dashboard</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Microservices table</h1>
+        
+        <div class="services">
+            <div class="service-card">
+                <h2>User Service</h2>
+                <ul class="endpoints">
+                    <li><strong>API:</strong> <a href="http://localhost:8000" target="_blank">http://localhost:8000</a></li>
+                    <li><strong>Swagger UI:</strong> <a href="http://localhost:8000/docs" target="_blank">/docs</a></li>
+                    <li><strong>Health Check:</strong> <a href="http://localhost:8000/health" target="_blank">/health</a></li>
+                    <li><strong>Database:</strong> PostgreSQL (port 54320)</li>
+                </ul>
+                <div>
+                    <span class="status healthy" id="user-status">Checking...</span>
+                </div>
+            </div>
+            
+            <div class="service-card">
+                <h2>Order Service</h2>
+                <ul class="endpoints">
+                    <li><strong>API:</strong> <a href="http://localhost:8001" target="_blank">http://localhost:8001</a></li>
+                    <li><strong>Swagger UI:</strong> <a href="http://localhost:8001/docs" target="_blank">/docs</a></li>
+                    <li><strong>Health Check:</strong> <a href="http://localhost:8001/health" target="_blank">/health</a></li>
+                    <li><strong>Database:</strong> PostgreSQL (port 54321)</li>
+                </ul>
+                <div>
+                    <span class="status healthy" id="order-status">Checking...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="monitoring">
+            <h2>Monitoring & Logging (ELK Stack)</h2>
+            <p>Centralized logging and monitoring for all microservices:</p>
+            <a href="http://localhost:5601" target="_blank" class="btn">Open Kibana</a>
+            <a href="http://localhost:9200" target="_blank" class="btn">Open Elasticsearch</a>
+            <a href="http://localhost:5000" target="_blank" class="btn">Logstash Port</a>
+        </div>
+        
+        <footer>
+            <p>Footer</p>
+        </footer>
+    </div>
+</body>
+</html>
