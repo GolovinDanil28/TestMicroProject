@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 import logging
-
+from prometheus_fastapi_instrumentator import Instrumentator
 from database import engine, SessionLocal, Base
 from models import Order
 from schemas import OrderCreate, OrderUpdate, OrderResponse  # Импорт из schemas.py
@@ -11,6 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Order Service")
+Instrumentator().instrument(app).expose(app)
 
 
 # Создание таблиц при запуске

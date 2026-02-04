@@ -4,7 +4,7 @@ from sqlalchemy.exc import OperationalError
 from typing import List
 import logging
 import time
-
+from prometheus_fastapi_instrumentator import Instrumentator
 from database import engine, SessionLocal, Base
 from models import User
 from schemas import UserCreate, UserResponse
@@ -44,6 +44,7 @@ def wait_for_db():
 app = FastAPI(
     title="User Service", version="1.0.0", docs_url="/docs", redoc_url="/redoc"
 )
+Instrumentator().instrument(app).expose(app)
 
 
 # Создание таблиц при запуске

@@ -1,33 +1,39 @@
 global:
-  scrape_interval: 15s # Как часто собирать данные
-  evaluation_interval: 15s # Как часто проверять правила алертов
+  scrape_interval: 15s
+  evaluation_interval: 15s
 
-scrape_configs: # Список целей для сбора
-  # 1. Мониторинг самого Prometheus
+scrape_configs:
+  # Мониторинг самого Prometheus
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  # 2. Мониторинг системы (через node-exporter)
+  # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Мониторинг Docker-контейнеров через cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080'] # Важно: это имя сервиса в docker-compose
+
+  # Мониторинг хостовой системы (CPU, память, диск, сеть)
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
+    # Необязательно: можно добавить метки для группировки, если серверов несколько
+    # labels:
+    #   group: 'microservices-host'
 
-  # 3. Мониторинг вашего User Service
+  # Мониторинг ваших сервисов
   - job_name: 'user-service'
     static_configs:
       - targets: ['user-service:8000']
     metrics_path: /metrics
-    scrape_interval: 20s
 
-  # 4. Мониторинг вашего Order Service
   - job_name: 'order-service'
     static_configs:
       - targets: ['order-service:8001']
     metrics_path: /metrics
 
-  # 5. (ОПЦИОНАЛЬНО) Мониторинг состояния Elasticsearch
+  # Мониторинг Elasticsearch (правильный путь для версии 7.x и 8.x)
   - job_name: 'elasticsearch'
     static_configs:
       - targets: ['elasticsearch:9200']
-    metrics_path: /_prometheus/metrics
+    metrics_path: /_node/stats/prometheus

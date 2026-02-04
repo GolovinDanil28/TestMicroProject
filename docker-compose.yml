@@ -81,13 +81,13 @@ services:
   filebeat:
     image: elastic/filebeat:8.13.0
     user: root
+    environment:
+      - DOCKER_API_VERSION=1.44
     volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: монтируем логи
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - filebeat-data:/usr/share/filebeat/data
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
     networks:
       - microservices-network
     restart: unless-stopped
@@ -136,7 +136,25 @@ services:
       - microservices-network
     restart: unless-stopped
 
-  # --- ВАШИ ПРИЛОЖЕНИЯ ---
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - microservices-network
+    restart: unless-stopped 
+
+  # ---ПРИЛОЖЕНИЯ ---
   user-service:
     build: ./user-service
     ports:
