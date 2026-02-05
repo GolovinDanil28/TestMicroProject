@@ -3,27 +3,24 @@ from typing import Optional
 from datetime import datetime
 
 
-# Схемы для запросов (Input)
 class OrderCreate(BaseModel):
     user_id: int
-    product_name: str
-    quantity: int
-    price: float
+    total_amount: float
+    status: str = "PENDING"
+    notes: Optional[str] = None
 
 
 class OrderUpdate(BaseModel):
     status: str
 
 
-# Схемы для ответов (Output)
 class OrderResponse(BaseModel):
     id: int
     user_id: int
-    product_name: str
-    quantity: int
-    price: float
+    total_amount: float
     status: str
-    created_at: Optional[datetime] = None  # если добавите поле в модель
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True  # Позволяет создавать из SQLAlchemy объектов
+        from_attributes = True

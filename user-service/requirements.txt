@@ -8,3 +8,4 @@ kafka-python==2.0.2
 python-json-logger==2.0.7
 elastic-apm==6.15.0
 prometheus-fastapi-instrumentator
+confluent-kafka>=2.3.0

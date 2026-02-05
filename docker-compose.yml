@@ -84,7 +84,7 @@ services:
     environment:
       - DOCKER_API_VERSION=1.44
     volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro # КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: монтируем логи
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - filebeat-data:/usr/share/filebeat/data
@@ -152,17 +152,77 @@ services:
       - "8080:8080"
     networks:
       - microservices-network
-    restart: unless-stopped 
+    restart: unless-stopped
 
-  # ---ПРИЛОЖЕНИЯ ---
+  # --- СТЕК ДЛЯ ОБМЕНА СООБЩЕНИЯМИ (KAFKA) ---
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    ports:
+      - "9092:9092"
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 20s
+      timeout: 15s
+      retries: 15
+      start_period: 60s
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_PROPERTIES_REQUEST_TIMEOUT_MS: 30000
+      KAFKA_CLUSTERS_0_PROPERTIES_RETRY_BACKOFF_MS: 5000
+    ports:
+      - "8081:8080"
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
   user-service:
     build: ./user-service
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://admin:admin123@postgres-user:5432/userdb
+      KAFKA_BROKER: kafka:9092
+      KAFKA_ENABLED: "true"
     depends_on:
       postgres-user:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - microservices-network
@@ -174,8 +234,12 @@ services:
       - "8001:8001"
     environment:
       DATABASE_URL: postgresql://admin:admin123@postgres-order:5432/orderdb
+      KAFKA_BROKER: kafka:9092
+      KAFKA_ENABLED: "true"
     depends_on:
       postgres-order:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - microservices-network
