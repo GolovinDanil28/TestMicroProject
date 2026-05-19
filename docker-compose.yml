@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL для User Service
   postgres-user:
